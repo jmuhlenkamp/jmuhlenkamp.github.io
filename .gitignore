@@ -1,0 +1,8 @@
+.DS_Store
+.hugo_build.lock
+.Rprofile
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+public/
