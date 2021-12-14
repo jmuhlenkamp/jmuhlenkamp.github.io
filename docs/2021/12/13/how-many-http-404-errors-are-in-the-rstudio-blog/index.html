@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="Hugo 0.90.1" />
+
+
+<title>How many HTTP 404 errors are in the RStudio Blog? - Jason Muhlenkamp</title>
+<meta property="og:title" content="How many HTTP 404 errors are in the RStudio Blog? - Jason Muhlenkamp">
+
+
+  <link href='/favicon.ico' rel='icon' type='image/x-icon'/>
+
+
+
+  
+
+
+
+
+
+
+
+
+<link href='//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css' rel='stylesheet' type='text/css' />
+
+
+
+<link rel="stylesheet" href="/css/fonts.css" media="all">
+<link rel="stylesheet" href="/css/main.css" media="all">
+
+
+
+  </head>
+  <body>
+    <div class="wrapper">
+      <header class="header">
+        <nav class="nav">
+  <a href="/" class="nav-logo">
+    <img src="/images/logo.png"
+         width="50"
+         height="50"
+         alt="Logo">
+  </a>
+
+  <ul class="nav-links">
+    
+    <li><a href="https://www.linkedin.com/in/jason-muhlenkamp-24b14320/">LinkedIn</a></li>
+    
+    <li><a href="/pdf/resume-jason-muhlenkamp.pdf">Resume</a></li>
+    
+  </ul>
+</nav>
+
+      </header>
+
+
+<main class="content" role="main">
+
+  <article class="article">
+    
+    <span class="article-duration">9 min read</span>
+    
+
+    <h1 class="article-title">How many HTTP 404 errors are in the RStudio Blog?</h1>
+
+    
+    <span class="article-date">2021-12-13</span>
+    
+
+    <div class="article-content">
+      
+<script src="/2021/12/13/how-many-http-404-errors-are-in-the-rstudio-blog/index_files/header-attrs/header-attrs.js"></script>
+
+
+<p>Recently I was reading a post from 2020 on the <a href="https://www.rstudio.com/blog/">RStudio Blog</a>, when I followed a link in the post only to find…</p>
+<p><img src="files/rstudio404.png" /></p>
+<p>Of course, it was easy to find the intended page with Google, but it made me curious:</p>
+<ul>
+<li><p>How many HTTP 404 (Page Not Found) errors like this exist in the RStudio Blog?</p></li>
+<li><p>Which links are broken?</p></li>
+<li><p>Could these broken links be easily fixed?</p></li>
+</ul>
+<p>It turns out we can get at these questions pretty quickly with R. Especially, if we break the overall mini-project into even smaller tasks such as:</p>
+<ul>
+<li><p>Get all of the blog posts on the RStudio Blog</p></li>
+<li><p>Get all of the links out of each blog post</p></li>
+<li><p>Test out all of the links</p></li>
+</ul>
+<div id="getting-all-blog-posts" class="section level1">
+<h1>Getting All Blog Posts</h1>
+<p>Clicking around in <a href="https://www.rstudio.com/blog/">the blog</a> reveals 38 pages of blog posts ranging from early 2011 to recently in December 2021 (Happy belated 10th birthday RStudio blog!).</p>
+<p>Let’s see if we can harvest or “rvest” all of the links.</p>
+<p>First, let’s build the 38 urls we need to retrieve links from.</p>
+<pre class="r"><code>n_pages &lt;- 38
+url_bloghome &lt;- &#39;https://www.rstudio.com/blog&#39; # This is page 1
+url_blogpages &lt;- c()
+for (i in 1:38){
+  current_url &lt;- url_bloghome
+  if (i &gt; 1){
+    current_url &lt;- file.path(url_bloghome, &#39;page&#39;, i)
+  }
+  url_blogpages &lt;- c(url_blogpages, current_url)
+}
+str(url_blogpages)</code></pre>
+<pre><code>##  chr [1:38] &quot;https://www.rstudio.com/blog&quot; ...</code></pre>
+<pre class="r"><code>head(url_blogpages)</code></pre>
+<pre><code>## [1] &quot;https://www.rstudio.com/blog&quot;        &quot;https://www.rstudio.com/blog/page/2&quot;
+## [3] &quot;https://www.rstudio.com/blog/page/3&quot; &quot;https://www.rstudio.com/blog/page/4&quot;
+## [5] &quot;https://www.rstudio.com/blog/page/5&quot; &quot;https://www.rstudio.com/blog/page/6&quot;</code></pre>
+<p>Now, let’s pull all of the blog post links out of these 38 urls.</p>
+<pre class="r"><code>library(rvest)
+get_blogposts &lt;- function(url){
+  read_html(url) %&gt;%
+    html_nodes(&#39;.pt-3&#39;) %&gt;%
+    html_nodes(&#39;a&#39;) %&gt;%
+    html_attr(&#39;href&#39;)
+}
+blogposts &lt;- unname(unlist(sapply(url_blogpages, FUN=get_blogposts)))
+str(blogposts)</code></pre>
+<pre><code>##  chr [1:562] &quot;https://www.rstudio.com/blog/three-ways-to-program-in-python-with-rstudio/&quot; ...</code></pre>
+<pre class="r"><code>head(blogposts, 25)</code></pre>
+<pre><code>##  [1] &quot;https://www.rstudio.com/blog/three-ways-to-program-in-python-with-rstudio/&quot;                            
+##  [2] &quot;https://www.rstudio.com/blog/rstudio-community-monthly-events-december-2021/&quot;                          
+##  [3] &quot;https://www.rstudio.com/blog/r-markdown-tips-tricks-1-rstudio-ide/&quot;                                    
+##  [4] &quot;https://www.rstudio.com/blog/announcing-the-rstudio-blog-s-new-vision-and-design/&quot;                     
+##  [5] &quot;https://www.rstudio.com/blog/augment-tableau-with-r-python/&quot;                                           
+##  [6] &quot;https://www.rstudio.com/blog/building-code-movies-with-flipbookr/&quot;                                     
+##  [7] &quot;https://www.rstudio.com/blog/rstudio-community-monthly-events-november-2021/&quot;                          
+##  [8] &quot;https://www.rstudio.com/blog/announcing-rstudio-on-amazon-sagemaker/&quot;                                  
+##  [9] &quot;https://www.rstudio.com/blog/how-the-clusterbuster-shiny-app-helps-battle-covid-19-in-the-netherlands/&quot;
+## [10] &quot;https://www.rstudio.com/blog/announcing-the-2021-rstudio-communications-survey/&quot;                       
+## [11] &quot;https://www.rstudio.com/blog/rstudio-at-r-pharma-2021/&quot;                                                
+## [12] &quot;https://www.rstudio.com/blog/how-data-scientists-and-security-teams-can-work-together/&quot;                
+## [13] &quot;https://www.rstudio.com/blog/pro-drivers-2021-10-0-release/&quot;                                           
+## [14] &quot;https://www.rstudio.com/blog/the-inspire-u2-program-student-reflections/&quot;                              
+## [15] &quot;https://www.rstudio.com/blog/embedding-shiny-apps-in-tableau-dashboards-using-shinytableau/&quot;           
+## [16] &quot;https://www.rstudio.com/blog/the-inspire-u2-program/&quot;                                                  
+## [17] &quot;https://www.rstudio.com/blog/why-your-ds-team-might-need-a-shiny-deployment-engineer/&quot;                 
+## [18] &quot;https://www.rstudio.com/blog/rstudio-connect-2021-09-0-tableau-analytics-extensions/&quot;                  
+## [19] &quot;https://www.rstudio.com/blog/teaching-data-science-with-rstudio-cloud/&quot;                                
+## [20] &quot;https://www.rstudio.com/blog/pins-1-0-0/&quot;                                                              
+## [21] &quot;https://www.rstudio.com/blog/rstudio-table-contest-2021/&quot;                                              
+## [22] &quot;https://www.rstudio.com/blog/how-to-use-shinymatrix-and-plotly-graphs/&quot;                                
+## [23] &quot;https://www.rstudio.com/blog/rstudio-2021.09.0-update-whats-new/&quot;                                      
+## [24] &quot;https://www.rstudio.com/blog/what-s-new-on-rstudio-cloud-september-2021/&quot;                              
+## [25] &quot;https://www.rstudio.com/blog/curating-for-wearerladies-on-twitter/&quot;</code></pre>
+<p>Check that out, we have 562 blog post urls now!</p>
+</div>
+<div id="get-links-from-the-blog-posts" class="section level1">
+<h1>Get Links from the Blog Posts</h1>
+<p>Let’s pull all of the links from all of those blog posts.</p>
+<pre class="r"><code>extract_links &lt;- function(blogpost){
+  read_html(blogpost) %&gt;%
+    html_nodes(&#39;a&#39;) %&gt;%
+    html_attr(&#39;href&#39;) %&gt;%
+    unique() %&gt;%
+    sort()
+}
+links &lt;- sapply(blogposts, extract_links)</code></pre>
+</div>
+<div id="clean-the-links" class="section level1">
+<h1>Clean the Links</h1>
+<p>Now let’s get a unique list of links so we can check for the 404 errors.</p>
+<pre class="r"><code>unique_links &lt;- sort(unique(unname(unlist(links))))
+str(unique_links)</code></pre>
+<pre><code>##  chr [1:4270] &quot;&quot; &quot; https://blog.rstudio.com/2020/01/29/rstudio-pbc/&quot; ...</code></pre>
+<pre class="r"><code>head(unique_links, 10)</code></pre>
+<pre><code>##  [1] &quot;&quot;                                                                      
+##  [2] &quot; https://blog.rstudio.com/2020/01/29/rstudio-pbc/&quot;                     
+##  [3] &quot; https://rladies.org/about-us/help/&quot;                                   
+##  [4] &quot;./handoff3.jpeg&quot;                                                       
+##  [5] &quot;./tableau-extract3.png&quot;                                                
+##  [6] &quot;/&quot;                                                                     
+##  [7] &quot;/2014/06/18/r-markdown-v2/&quot;                                            
+##  [8] &quot;/2014/06/19/interactive-documents-an-incredibly-easy-way-to-use-shiny/&quot;
+##  [9] &quot;/2015/06/24/dt-an-r-interface-to-the-datatables-library/&quot;              
+## [10] &quot;/2016/12/02/announcing-bookdown/&quot;</code></pre>
+<pre class="r"><code>tail(unique_links, 10)</code></pre>
+<pre><code>##  [1] &quot;mailto:info@epi-interactive.com&quot;            
+##  [2] &quot;mailto:info@rstudio.com&quot;                    
+##  [3] &quot;mailto:josh@rstudio.com&quot;                    
+##  [4] &quot;mailto:life-sciences-healthcare@rstudio.com&quot;
+##  [5] &quot;mailto:sales@rstudio.com&quot;                   
+##  [6] &quot;mailto:shinyapps-support@rstudio.com&quot;       
+##  [7] &quot;mailto:support@rstudio.com&quot;                 
+##  [8] &quot;mailto:training@rstudio.com&quot;                
+##  [9] &quot;r4ds.io/join&quot;                               
+## [10] &quot;sendmail:%20training@rstudio.com&quot;</code></pre>
+<p>It looks like we have both absolute and relative urls, so let’s clean this up a bit.
+To keep things simple for this analysis, we’ll assume:</p>
+<ul>
+<li>All absolute links start with <code>http</code></li>
+<li>All absolute links start with <code>/</code></li>
+<li>We will ignore all other links (such as <code>mailto:...</code>)</li>
+</ul>
+<pre class="r"><code>absolute_links &lt;- unique_links[substring(unique_links, 1, 4) == &#39;http&#39;]
+relative_links &lt;- unique_links[substring(unique_links, 1, 1) == &#39;/&#39;]
+clean_links &lt;- c(paste0(&#39;https://www.rstudio.com&#39;, relative_links), absolute_links)
+str(clean_links)</code></pre>
+<pre><code>##  chr [1:4137] &quot;https://www.rstudio.com/&quot; ...</code></pre>
+<pre class="r"><code>head(clean_links)</code></pre>
+<pre><code>## [1] &quot;https://www.rstudio.com/&quot;                                                                     
+## [2] &quot;https://www.rstudio.com/2014/06/18/r-markdown-v2/&quot;                                            
+## [3] &quot;https://www.rstudio.com/2014/06/19/interactive-documents-an-incredibly-easy-way-to-use-shiny/&quot;
+## [4] &quot;https://www.rstudio.com/2015/06/24/dt-an-r-interface-to-the-datatables-library/&quot;              
+## [5] &quot;https://www.rstudio.com/2016/12/02/announcing-bookdown/&quot;                                      
+## [6] &quot;https://www.rstudio.com/2017/06/26/bigrquery-0-4-0/&quot;</code></pre>
+<pre class="r"><code>tail(clean_links)</code></pre>
+<pre><code>## [1] &quot;https://youtu.be/sB8CYGlPN0o?t=158&quot;                      
+## [2] &quot;https://youtu.be/t25Lbi5D6kg&quot;                            
+## [3] &quot;https://youtu.be/Y2zoRCXgPwk&quot;                            
+## [4] &quot;https://youtu.be/yb_mBJz3iSc&quot;                            
+## [5] &quot;https://yutani.rbind.io/post/2017-10-25-blogdown-custom/&quot;
+## [6] &quot;https://zotero.org&quot;</code></pre>
+<p>It looks like we’ve dropped less than 150 links. That seems reasonable.</p>
+<p>Let’s limit our scope even further to only links to RStudio.com web pages. Why?
+Two motivating reasons:</p>
+<ul>
+<li><p>These are likely easily fixed by RStudio or the R community. Whereas, if companyabc.com existed
+about five years ago and no longer existed, there is not really much to do about it.</p></li>
+<li><p>This is meant to be a fun mini project &amp; not an all encompassing exercise (More generally,
+without scope limits, things intended to take hours can easily take days.)</p></li>
+</ul>
+<pre class="r"><code>clean_rstudio_links &lt;- clean_links[grepl(&#39;rstudio.com&#39;, clean_links, fixed=TRUE)]
+str(clean_rstudio_links)</code></pre>
+<pre><code>##  chr [1:1570] &quot;https://www.rstudio.com/&quot; ...</code></pre>
+<p>This still leaves us with over 1500 links to check :-) even with our limited scope. Let’s
+see if we can quick categorize these links a bit. Perhaps by whatever comes right
+before rstudio.com.</p>
+<pre class="r"><code>get_prefix &lt;- function(link, term=&#39;rstudio&#39;){
+  dotsplit &lt;- unlist(strsplit(link, &#39;\\.&#39;))
+  rsindex &lt;- grep(term, dotsplit)
+  dotsplit[rsindex - 1]
+}
+clean_rstudio_links2 &lt;- unlist(sapply(clean_rstudio_links, get_prefix))
+table(clean_rstudio_links2)</code></pre>
+<pre><code>## clean_rstudio_links2
+##           http://blogs       http://community            http://cran 
+##                      1                      4                     14 
+##       http://cran-logs              http://db            http://docs 
+##                      1                      2                     64 
+##       http://education           http://ggvis         http://glimmer 
+##                      1                      1                      1 
+##            http://pins       http://rmarkdown          http://rviews 
+##                      7                      1                      2 
+##           http://shiny           http://spark         http://support 
+##                      9                      1                      2 
+##             http://www           https://blog          https://blogs 
+##                      1                    159                      5 
+##       https://colorado      https://community           https://cran 
+##                      4                    168                      7 
+##             https://db            https://doc           https://docs 
+##                      2                      2                    156 
+##      https://education   https://environments         https://global 
+##                      2                      3                      2 
+##             https://gt          https://keras https://packagemanager 
+##                     16                     32                      5 
+##           https://pins           https://pkgs      https://resources 
+##                     16                     25                     13 
+##      https://rmarkdown        https://rstudio         https://rviews 
+##                     34                     34                      8 
+##          https://shiny      https://solutions          https://spark 
+##                     93                     33                     24 
+##        https://support           https://swag     https://tensorflow 
+##                     43                      1                     23 
+##     https://TensorFlow            https://www                rstudio 
+##                      1                    481                    160</code></pre>
+<p>Finally, let’s remove a few of these that will break my checking function below (or would require me to add error handling). Specifically, the 2 links that <code>https://doc.rstudio.com/</code> with are non-starters as those take my to a “Can’t Find the Server” error. So, yes, those are broken links, but not 404 errors, and we are going to manually remove them for this analysis.</p>
+<pre class="r"><code>clean_rstudio_links3 &lt;- clean_rstudio_links[!grepl(&#39;doc.rstudio.com&#39;, clean_rstudio_links, fixed=TRUE)]
+str(clean_rstudio_links3)</code></pre>
+<pre><code>##  chr [1:1568] &quot;https://www.rstudio.com/&quot; ...</code></pre>
+</div>
+<div id="check-the-links" class="section level1">
+<h1>Check the Links</h1>
+<pre class="r"><code>library(httr)
+link_status &lt;- unlist(sapply(clean_rstudio_links3, function(x)
+  unname(GET(x)[&#39;status_code&#39;])))
+str(link_status)</code></pre>
+<pre><code>##  Named int [1:1568] 200 404 404 404 404 404 404 404 404 404 ...
+##  - attr(*, &quot;names&quot;)= chr [1:1568] &quot;https://www.rstudio.com/&quot; &quot;https://www.rstudio.com/2014/06/18/r-markdown-v2/&quot; &quot;https://www.rstudio.com/2014/06/19/interactive-documents-an-incredibly-easy-way-to-use-shiny/&quot; &quot;https://www.rstudio.com/2015/06/24/dt-an-r-interface-to-the-datatables-library/&quot; ...</code></pre>
+<p>How many HTTP 404 errors did we find? 117</p>
+<pre class="r"><code>links404 &lt;- names(link_status[link_status == 404])
+str(links404)</code></pre>
+<pre><code>##  chr [1:117] &quot;https://www.rstudio.com/2014/06/18/r-markdown-v2/&quot; ...</code></pre>
+<pre class="r"><code>head(links404)</code></pre>
+<pre><code>## [1] &quot;https://www.rstudio.com/2014/06/18/r-markdown-v2/&quot;                                            
+## [2] &quot;https://www.rstudio.com/2014/06/19/interactive-documents-an-incredibly-easy-way-to-use-shiny/&quot;
+## [3] &quot;https://www.rstudio.com/2015/06/24/dt-an-r-interface-to-the-datatables-library/&quot;              
+## [4] &quot;https://www.rstudio.com/2016/12/02/announcing-bookdown/&quot;                                      
+## [5] &quot;https://www.rstudio.com/2017/06/26/bigrquery-0-4-0/&quot;                                          
+## [6] &quot;https://www.rstudio.com/2017/09/11/announcing-blogdown/&quot;</code></pre>
+<pre class="r"><code>tail(links404)</code></pre>
+<pre><code>## [1] &quot;https://www.rstudio.com/resources/webinars/introducing-notebooks-with-r-markdown/&quot;
+## [2] &quot;https://www.rstudio.com/resources/webinars/shiny-developer-conference/&quot;           
+## [3] &quot;https://www.rstudio.com/rstudio/download/preview/&quot;                                
+## [4] &quot;https://www.rstudio.com/workshops/applied-machine-learning/&quot;                      
+## [5] &quot;https://www.rstudio.com/workshops/extending-the-tidyverse/&quot;                       
+## [6] &quot;https://www.rstudio.com/workshops/what-they-forgot-to-teach-you-about-r/&quot;</code></pre>
+</div>
+<div id="sanity-check" class="section level1">
+<h1>Sanity Check</h1>
+<p>Let’s do a quick manual check here on at least one of these broken links. How about
+the first one? <a href="https://www.rstudio.com/2014/06/18/r-markdown-v2/">(https://www.rstudio.com/2014/06/18/r-markdown-v2/)</a>.</p>
+<p>To truly sanity check this, we would want to find the original blog post containing
+the link and try clicking the link in the post.</p>
+<p>So which blog post contained this link?</p>
+<pre class="r"><code>result &lt;- sapply(links, function(x) &#39;/2014/06/18/r-markdown-v2/&#39; %in% x)
+result[result]</code></pre>
+<pre><code>## https://www.rstudio.com/blog/introducing-ggvis/ 
+##                                            TRUE</code></pre>
+<p>And indeed if we navigate to <a href="https://www.rstudio.com/blog/introducing-ggvis/">https://www.rstudio.com/blog/introducing-ggvis/</a> and try clicking on the <a href="https://www.rstudio.com/2014/06/18/r-markdown-v2/">R Markdown v2</a> link in the blog post, we are taken to the Page Not Found error page.</p>
+</div>
+<div id="concluding-remarks" class="section level1">
+<h1>Concluding Remarks</h1>
+<p>To conclude, let’s circle back to our original questions.</p>
+<ul>
+<li>How many HTTP 404 (Page Not Found) errors like this exist in the RStudio Blog?</li>
+</ul>
+<p>We ended limiting scope to only rstudio.com links and found that 117 of over 1500 unique
+links are currently returning a 404 error. Furthermore, there are two links to doc.rstudio.com that return a <code>Can't Find the Server</code> error.</p>
+<ul>
+<li>Which links are broken?</li>
+</ul>
+<p>A full list of the broken links is printed in the appendix (sorted alphabetically).</p>
+<ul>
+<li>Could these broken links be easily fixed?</li>
+</ul>
+<p>The RStudio blog does not appear to be open source, thus we cannot create a PR to
+fix the links. However, the most notable thing is that many of the broken links seem to
+follow certain patterns, notably related to absence or presence of dates that could hopefully be easily fixed. Consider these two examples.</p>
+<p>EXAMPLE 1</p>
+<p>This <a href="https://www.rstudio.com/blog/role-of-the-data-scientist/">blog post</a>, after redirects,
+is linked to <a href="https://www.rstudio.com/blog/driving-real-lasting-value-with-serious-data-science/">https://www.rstudio.com/blog/driving-real-lasting-value-with-serious-data-science/</a> but the correct link should have a yyyy-mm-dd in the slug: <a href="https://www.rstudio.com/blog/2020-05-19-driving-real-lasting-value-with-serious-data-science/">https://www.rstudio.com/blog/2020-05-19-driving-real-lasting-value-with-serious-data-science/</a></p>
+<p>EXAMPLE 2</p>
+<p>This <a href="https://www.rstudio.com/blog/introducing-ggvis/">other blog post</a>
+is linked to <a href="https://www.rstudio.com/2014/06/18/r-markdown-v2/">https://www.rstudio.com/2014/06/18/r-markdown-v2/</a> and in this case the <code>/yyyy/mm/dd/</code> folders need to be replaced with simply <code>/blog/</code>. The correct link should be <a href="https://www.rstudio.com/blog/r-markdown-v2/">https://www.rstudio.com/blog/r-markdown-v2/</a>.</p>
+<p>In other words, afik these links cannot be fixed by the community (i.e. me via a PR), but someone with access could presumably fix this up with a little effort. Also, at this point, we’d likely want someone with domain knowledge of the RStudio Blog who could combine these results with their knowledge to determine a next steps.</p>
+<p>Thank you for reading, I hope you have enjoyed this analysis!</p>
+</div>
+<div id="appendix" class="section level1">
+<h1>Appendix</h1>
+<p>Here is the full vector of 404 error links.</p>
+<pre class="r"><code>links404</code></pre>
+<pre><code>##   [1] &quot;https://www.rstudio.com/2014/06/18/r-markdown-v2/&quot;                                                                             
+##   [2] &quot;https://www.rstudio.com/2014/06/19/interactive-documents-an-incredibly-easy-way-to-use-shiny/&quot;                                 
+##   [3] &quot;https://www.rstudio.com/2015/06/24/dt-an-r-interface-to-the-datatables-library/&quot;                                               
+##   [4] &quot;https://www.rstudio.com/2016/12/02/announcing-bookdown/&quot;                                                                       
+##   [5] &quot;https://www.rstudio.com/2017/06/26/bigrquery-0-4-0/&quot;                                                                           
+##   [6] &quot;https://www.rstudio.com/2017/09/11/announcing-blogdown/&quot;                                                                       
+##   [7] &quot;https://www.rstudio.com/2017/09/13/rstudio-v1.1-the-little-things/&quot;                                                            
+##   [8] &quot;https://www.rstudio.com/2018/09/19/radix-for-r-markdown/&quot;                                                                      
+##   [9] &quot;https://www.rstudio.com/2018/11/19/rstudio-1-2-preview-the-little-things/&quot;                                                     
+##  [10] &quot;https://www.rstudio.com/2019/01/17/announcing-rstudio-connect-1-7-0/&quot;                                                          
+##  [11] &quot;https://www.rstudio.com/2020/03/17/rstudio-1-3-the-little-things/&quot;                                                             
+##  [12] &quot;https://www.rstudio.com/2020/07/17/rstudio-global-2021&quot;                                                                        
+##  [13] &quot;https://www.rstudio.com/2020/07/17/rstudio-global-call-for-talks&quot;                                                              
+##  [14] &quot;https://www.rstudio.com/2020/09/30/rstudio-v1-4-preview-visual-markdown-editing/&quot;                                              
+##  [15] &quot;https://www.rstudio.com/2020/11/09/rstudio-1-4-preview-citations/&quot;                                                             
+##  [16] &quot;https://www.rstudio.com/2020/12/07/distill/&quot;                                                                                   
+##  [17] &quot;https://www.rstudio.com/2021/01/18/blogdown-v1.0/&quot;                                                                             
+##  [18] &quot;https://www.rstudio.com/2021/02/04/rstudio-cloud1/&quot;                                                                            
+##  [19] &quot;https://www.rstudio.com/2021/06/02/announcing-rstudio-workbench/&quot;                                                              
+##  [20] &quot;https://www.rstudio.com/2021/06/02/rstudio-workbench-vscode-sessions/&quot;                                                         
+##  [21] &quot;https://www.rstudio.com/2021/06/24/winners-of-the-3rd-annual-shiny-contest/&quot;                                                   
+##  [22] &quot;https://www.rstudio.com/s/photos/brian-mcgowan-tomorrowland?utm_source=unsplash&amp;utm_medium=referral&amp;utm_content=creditCopyText&quot;
+##  [23] &quot;https://www.rstudio.com/s/photos/match?utm_source=unsplash&amp;utm_medium=referral&amp;utm_content=creditCopyText&quot;                     
+##  [24] &quot;http://cran.rstudio.com/web/packages/dplyr/vignettes/databases.html&quot;                                                           
+##  [25] &quot;http://cran.rstudio.com/web/packages/dplyr/vignettes/introduction.html&quot;                                                        
+##  [26] &quot;http://cran.rstudio.com/web/packages/shiny/NEWS&quot;                                                                               
+##  [27] &quot;http://docs.rstudio.com/connect/1.4.5/admin/user-management.html#user-roles&quot;                                                   
+##  [28] &quot;http://pins.rstudio.com/articles/advanced-versions.html&quot;                                                                       
+##  [29] &quot;http://pins.rstudio.com/articles/boards-azure.html&quot;                                                                            
+##  [30] &quot;http://pins.rstudio.com/articles/boards-dospace.html&quot;                                                                          
+##  [31] &quot;http://pins.rstudio.com/articles/boards-gcloud.html&quot;                                                                           
+##  [32] &quot;http://pins.rstudio.com/articles/boards-kaggle.html&quot;                                                                           
+##  [33] &quot;http://pins.rstudio.com/articles/boards-rsconnect.html&quot;                                                                        
+##  [34] &quot;http://pins.rstudio.com/articles/boards-s3.html&quot;                                                                               
+##  [35] &quot;http://rstudio.com/training/curriculum/advanced-r-programming.html&quot;                                                            
+##  [36] &quot;http://rstudio.com/training/curriculum/effective-data-visualization.html&quot;                                                      
+##  [37] &quot;http://rstudio.com/training/curriculum/package-development.html&quot;                                                               
+##  [38] &quot;http://rstudio.com/training/curriculum/reports-and-reproducible-research.html&quot;                                                 
+##  [39] &quot;http://rstudio.com/training/on-site.html&quot;                                                                                      
+##  [40] &quot;http://rstudio.com/training/philosophy.html&quot;                                                                                   
+##  [41] &quot;http://rstudio.com/training/public-courses.html&quot;                                                                               
+##  [42] &quot;http://rstudio.com/training/trainers.html&quot;                                                                                     
+##  [43] &quot;https://blog.rstudio.com/2019/01/18/summer-internships-2019/&quot;                                                                  
+##  [44] &quot;https://blog.rstudio.com/2019/02/28/rstudio-instructor-training/&quot;                                                              
+##  [45] &quot;https://blog.rstudio.com/2019/05/21/rstudio-instructor-training-updates/&quot;                                                      
+##  [46] &quot;https://blog.rstudio.com/2020/05/19/driving-real-lasting-value-with-serious-data-science/&quot;                                     
+##  [47] &quot;https://blog.rstudio.com/2020/07/09/why-you-need-a-world-class-ide-to-do-serious-data-science/&quot;                                
+##  [48] &quot;https://blog.rstudio.com/2020/09/15/announcing-the-2020-rstudio-table-contest/&quot;                                                
+##  [49] &quot;https://blog.rstudio.com/2020/12/07/package-manager-1-2-0/&quot;                                                                    
+##  [50] &quot;https://blog.rstudio.com/tags/bi-tools/&quot;                                                                                       
+##  [51] &quot;https://cran.rstudio.com/web/packages/dplyr/vignettes/introduction.html&quot;                                                       
+##  [52] &quot;https://docs.rstudio.com/connect/1.6.11/admin/python.html&quot;                                                                     
+##  [53] &quot;https://docs.rstudio.com/connect/admin/authentication.html#authentication-oauth2&quot;                                              
+##  [54] &quot;https://docs.rstudio.com/connect/admin/authentication.html#authentication-saml&quot;                                                
+##  [55] &quot;https://docs.rstudio.com/connect/admin/authentication.html#change-auth-provider&quot;                                               
+##  [56] &quot;https://docs.rstudio.com/connect/admin/cli.html#cli-usermanager&quot;                                                               
+##  [57] &quot;https://docs.rstudio.com/connect/admin/getting-started.html#need-help&quot;                                                         
+##  [58] &quot;https://pins.rstudio.com/articles/boards-azure.html&quot;                                                                           
+##  [59] &quot;https://pins.rstudio.com/articles/boards-gcloud.html&quot;                                                                          
+##  [60] &quot;https://pins.rstudio.com/articles/boards-kaggle.html&quot;                                                                          
+##  [61] &quot;https://pins.rstudio.com/articles/boards-rsconnect.html&quot;                                                                       
+##  [62] &quot;https://pins.rstudio.com/articles/boards-s3.html&quot;                                                                              
+##  [63] &quot;https://pins.rstudio.com/articles/boards-websites.html&quot;                                                                        
+##  [64] &quot;https://pins.rstudio.com/articles/pins-rstudio.html&quot;                                                                           
+##  [65] &quot;https://resources.rstudio.com/rstudio-conf-2020/value-in-data-science-beyond-models-in-production-eduardo-arino-de-la-rubia&quot;   
+##  [66] &quot;https://rmarkdown.rstudio.com/flexdashboard/examples.html&quot;                                                                     
+##  [67] &quot;https://rmarkdown.rstudio.com/flexdashboard/layouts.html&quot;                                                                      
+##  [68] &quot;https://rmarkdown.rstudio.com/flexdashboard/shiny.html&quot;                                                                        
+##  [69] &quot;https://rmarkdown.rstudio.com/flexdashboard/using.html&quot;                                                                        
+##  [70] &quot;https://rmarkdown.rstudio.com/flexdashboard/using.html#storyboards&quot;                                                            
+##  [71] &quot;https://rstudio.com/resources/rstudioconf-2020/making-the-shiny-contest/&quot;                                                      
+##  [72] &quot;https://rstudio.com/resources/rstudioconf-2020/value-in-data-science-beyond-models-in-production/&quot;                             
+##  [73] &quot;https://rstudio.com/resources/rstudioglobal-2021/,&quot;                                                                            
+##  [74] &quot;https://shiny.rstudio.com/articles/single-file.html&quot;                                                                           
+##  [75] &quot;https://shiny.rstudio.com/articles/upgrade-0.14.html#full-changelog&quot;                                                           
+##  [76] &quot;https://shiny.rstudio.com/gallery/widgets-gallery.html&quot;                                                                        
+##  [77] &quot;https://shiny.rstudio.com/reference/shiny/latest/removeUI.html&quot;                                                                
+##  [78] &quot;https://shiny.rstudio.com/reference/shiny/latest/showReactLog.html&quot;                                                            
+##  [79] &quot;https://solutions.rstudio.com/2019/12/30/rstudio-connect-custom-emails-with-blastula/&quot;                                         
+##  [80] &quot;https://solutions.rstudio.com/data-science-admin/deploy/apis/&quot;                                                                 
+##  [81] &quot;https://solutions.rstudio.com/deploy/overview/&quot;                                                                                
+##  [82] &quot;https://solutions.rstudio.com/deploy/promote/&quot;                                                                                 
+##  [83] &quot;https://solutions.rstudio.com/examples/jobs-overview/&quot;                                                                         
+##  [84] &quot;https://solutions.rstudio.com/examples/rest-apis-overview/#log-details-about-api-requests-and-responses&quot;                       
+##  [85] &quot;https://solutions.rstudio.com/examples/rsc-apis/acl-audit-report&quot;                                                              
+##  [86] &quot;https://solutions.rstudio.com/examples/rsc-apis/basic-audit-report&quot;                                                            
+##  [87] &quot;https://solutions.rstudio.com/examples/rsc-apis/tag-audit-report&quot;                                                              
+##  [88] &quot;https://solutions.rstudio.com/examples/rsc-apis/vanity-audit-report&quot;                                                           
+##  [89] &quot;https://solutions.rstudio.com/examples/rsc-server-api-overview/&quot;                                                               
+##  [90] &quot;https://solutions.rstudio.com/launcher/kubernetes/&quot;                                                                            
+##  [91] &quot;https://solutions.rstudio.com/launcher/kubernetes/#want-to-learn-more-about-rstudio-server-pro-and-kubernetes&quot;                 
+##  [92] &quot;https://solutions.rstudio.com/production/integrations/&quot;                                                                        
+##  [93] &quot;https://spark.rstudio.com/articles/guides-distributed-r.html&quot;                                                                  
+##  [94] &quot;https://spark.rstudio.com/deployment_examples.html&quot;                                                                            
+##  [95] &quot;https://spark.rstudio.com/h2o.html&quot;                                                                                            
+##  [96] &quot;https://spark.rstudio.com/images/sparklyr-cheatsheet.pdf&quot;                                                                      
+##  [97] &quot;https://spark.rstudio.com/mllib.html&quot;                                                                                          
+##  [98] &quot;https://tensorflow.rstudio.com/gallery/&quot;                                                                                       
+##  [99] &quot;https://tensorflow.rstudio.com/learn/examples.html&quot;                                                                            
+## [100] &quot;https://www.rstudio.com/about/news-events/&quot;                                                                                    
+## [101] &quot;https://www.rstudio.com/conference/rstudioconf-tickets/&quot;                                                                       
+## [102] &quot;https://www.rstudio.com/ide/docs/authoring/using_markdown.html&quot;                                                                
+## [103] &quot;https://www.rstudio.com/ide/docs/release_notes_v0.97.html&quot;                                                                     
+## [104] &quot;https://www.rstudio.com/ide/docs/release_notes_v0.98.html&quot;                                                                     
+## [105] &quot;https://www.rstudio.com/ide/download/server-pro-evaluation.html&quot;                                                               
+## [106] &quot;https://www.rstudio.com/products/rstudio-server-pro2/&quot;                                                                         
+## [107] &quot;https://www.rstudio.com/resources/videos/debugging-techniques/&quot;                                                                
+## [108] &quot;https://www.rstudio.com/resources/videos/plumbing-apis-with-plumber/&quot;                                                          
+## [109] &quot;https://www.rstudio.com/resources/videos/scaling-shiny-apps-with-async-programming-june-2018/&quot;                                 
+## [110] &quot;https://www.rstudio.com/resources/videos/scaling-shiny/&quot;                                                                       
+## [111] &quot;https://www.rstudio.com/resources/webinars/introducing-an-r-interface-for-apache-spark/&quot;                                       
+## [112] &quot;https://www.rstudio.com/resources/webinars/introducing-notebooks-with-r-markdown/&quot;                                             
+## [113] &quot;https://www.rstudio.com/resources/webinars/shiny-developer-conference/&quot;                                                        
+## [114] &quot;https://www.rstudio.com/rstudio/download/preview/&quot;                                                                             
+## [115] &quot;https://www.rstudio.com/workshops/applied-machine-learning/&quot;                                                                   
+## [116] &quot;https://www.rstudio.com/workshops/extending-the-tidyverse/&quot;                                                                    
+## [117] &quot;https://www.rstudio.com/workshops/what-they-forgot-to-teach-you-about-r/&quot;</code></pre>
+</div>
+
+    </div>
+  </article>
+
+  
+
+
+</main>
+
+      <footer class="footer">
+        <ul class="footer-links">
+          <li>
+            <a href="/index.xml" type="application/rss+xml" target="_blank">RSS feed</a>
+          </li>
+          <li>
+            <a href="https://gohugo.io/" class="footer-links-kudos">Made with <img src="/images/hugo-logo.png" alt="Img link to Hugo website" width="22" height="22"></a>
+          </li>
+        </ul>
+      </footer>
+
+    </div>
+    
+
+
+
+<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+
+
+
+<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/r.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/yaml.min.js"></script>
+<script>hljs.configure({languages: []}); hljs.initHighlightingOnLoad();</script>
+
+
+
+    
+<script src="/js/math-code.js"></script>
+<script async src="//cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+
+
+    
+  </body>
+</html>
+
